@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"io"
-	"log"
 	"os/user"
 
 	"strings"
@@ -12,10 +11,9 @@ import (
 )
 
 func main() {
-	viper.SetConfigName("dokku-apply")
-	curr, _ := user.Current()
-	log.Println(curr.Name)
 	performUserCheck()
+	viper.SetConfigName("dokku-apply")
+	viper.ReadInConfig()
 }
 
 func performUserCheck() {
@@ -33,6 +31,7 @@ func performUserCheck() {
 func CorrectAdminSSHKeyName(sshKey string, inFile io.Reader, outFile io.Writer) error {
 	scanner := bufio.NewScanner(inFile)
 	writer := bufio.NewWriter(outFile)
+	lineEnding := ""
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, `\"default\"`) {
@@ -40,9 +39,10 @@ func CorrectAdminSSHKeyName(sshKey string, inFile io.Reader, outFile io.Writer) 
 				line = strings.Replace(line, `\"default\"`, `\"admin\"`, -1)
 			}
 		}
-		if _, err := writer.WriteString(line + "\n"); err != nil {
+		if _, err := writer.WriteString(lineEnding + line); err != nil {
 			return err
 		}
+		lineEnding = "\n"
 	}
 	if err := scanner.Err(); err != nil {
 		return err
