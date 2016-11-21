@@ -2,16 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"io/ioutil"
+	"log"
 	"os/exec"
 	"os/user"
-
 	"strings"
-
-	"log"
-
-	"bytes"
 
 	"github.com/spf13/viper"
 )
