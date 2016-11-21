@@ -3,9 +3,14 @@ package main
 import (
 	"bufio"
 	"io"
+	"io/ioutil"
 	"os/user"
 
 	"strings"
+
+	"log"
+
+	"bytes"
 
 	"github.com/spf13/viper"
 )
@@ -13,7 +18,27 @@ import (
 func main() {
 	performUserCheck()
 	viper.SetConfigName("dokku-apply")
+	viper.AddConfigPath("/etc/")
 	viper.ReadInConfig()
+
+	if adminSSHKey := viper.GetString("correctAdminSSHKey"); len(adminSSHKey) > 0 {
+		fileContents, err := ioutil.ReadFile("/home/dokku/.ssh/authorized_keys")
+		if err != nil {
+			log.Fatalln("Unable to read authorized_keys file", err)
+		}
+		inFile, outFile := bytes.NewBuffer(fileContents), &bytes.Buffer{}
+		if err := CorrectAdminSSHKeyName(adminSSHKey, inFile, outFile); err != nil {
+			log.Fatalln("Error parsing authorized_keys file", err)
+		}
+		outFileContents := outFile.String()
+		if strings.Compare(string(fileContents), outFileContents) == 0 {
+			return
+		}
+		log.Println("Applying changes to authorized_keys file")
+		if err := ioutil.WriteFile("/home/dokku/.ssh/authorized_keys", []byte(outFileContents), 0644); err != nil {
+			log.Fatalln("Error committing changes to authorized_keys file", err)
+		}
+	}
 }
 
 func performUserCheck() {
