@@ -6,7 +6,10 @@ import (
 
 	"os"
 
+	"reflect"
+
 	randomdata "github.com/Pallinder/go-randomdata"
+	"github.com/stretchr/testify/assert"
 	"github.com/strothj/dokku-apply/dokku"
 )
 
@@ -20,6 +23,32 @@ func TestRenameDefaultUser_UpdatesFileContents(t *testing.T) {
 		AuthorizedKeysMode: os.FileMode(0644),
 	}
 
+	defer removeRenameDefaultUserTestHooks()
+	setRenameDefaultUserReadFileTestHook(t, startingContents)
+	var writeFileCalled bool
+	renameDefaultUserWriteFileTestHook = func(filename string, data []byte, perm os.FileMode) error {
+		writeFileCalled = true
+		assert.Equal(t, "/home/dokku/.ssh/authorized_keys", filename)
+		assert.True(t, reflect.DeepEqual([]byte(expectedContents), data))
+		assert.Equal(t, os.FileMode(0644), perm)
+		return nil
+	}
+
+	task := &renameDefaultUserToAdminTask{}
+	err := task.Run(config, env)
+	assert.Nil(t, err)
+	assert.True(t, writeFileCalled, "WriteFile should have been called")
+}
+
+func setRenameDefaultUserReadFileTestHook(t *testing.T, startingContent string) {
+	renameDefaultUserReadFileTestHook = func(filename string) ([]byte, error) {
+		assert.Equal(t, "/home/dokku/.ssh/authorized_keys", filename)
+		return []byte(startingContent), nil
+	}
+}
+
+func removeRenameDefaultUserTestHooks() {
+	renameDefaultUserReadFileTestHook = nil
 }
 
 // createRenameDefaultUsersTestValues returns the SSH key for the admin (key),
