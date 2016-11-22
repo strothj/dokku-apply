@@ -1,0 +1,49 @@
+package dokku
+
+import (
+	"os"
+	"os/exec"
+
+	"github.com/pkg/errors"
+)
+
+// Environment represents the Dokku installation environment.
+type Environment struct {
+	// Executable is the path to the Dokku executable.
+	Executable string
+
+	// UID holds the POSIX Uid for the Dokku system user.
+	UID string
+
+	// GID holds the POSIX Gid for the Dokku system user.
+	GID string
+
+	// AuthorizedKeys holds the path to the Dokku "authorized_keys". It is
+	// normally /home/dokku/.ssh/authorized_keys.
+	AuthorizedKeys string
+
+	// AuthorizedKeysMode is the file mode to set on the Dokku authorized_keys
+	// file. Set to 0644 by GetEnvironment.
+	AuthorizedKeysMode os.FileMode
+}
+
+// GetEnvironment returns information about the Dokku installation environment.
+func GetEnvironment() (*Environment, error) {
+	environment := &Environment{}
+
+	lookPath := environmentLookPathTestHook
+	if lookPath == nil {
+		lookPath = exec.LookPath
+	}
+
+	executable, err := lookPath("dokku")
+	if err != nil {
+		return nil, errors.Wrap(err,
+			"get environment: failed to find Dokku executable")
+	}
+	environment.Executable = executable
+
+	return environment, nil
+}
+
+var environmentLookPathTestHook func(file string) (string, error)
