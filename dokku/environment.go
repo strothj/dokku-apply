@@ -3,6 +3,9 @@ package dokku
 import (
 	"os"
 	"os/exec"
+	"os/user"
+
+	"path"
 
 	"github.com/pkg/errors"
 )
@@ -31,9 +34,14 @@ type Environment struct {
 func GetEnvironment() (*Environment, error) {
 	environment := &Environment{}
 
+	// Test hooks
 	lookPath := environmentLookPathTestHook
 	if lookPath == nil {
 		lookPath = exec.LookPath
+	}
+	lookup := environmentLookupTestHook
+	if lookup == nil {
+		lookup = user.Lookup
 	}
 
 	executable, err := lookPath("dokku")
@@ -43,7 +51,18 @@ func GetEnvironment() (*Environment, error) {
 	}
 	environment.Executable = executable
 
+	user, err := lookup("dokku")
+	if err != nil {
+		return nil, errors.Wrap(err,
+			"get environment: user lookup failed")
+	}
+	environment.UID = user.Uid
+	environment.GID = user.Gid
+	environment.AuthorizedKeys = path.Join(user.HomeDir, ".ssh", "authorized_keys")
+	environment.AuthorizedKeysMode = os.FileMode(0644)
+
 	return environment, nil
 }
 
 var environmentLookPathTestHook func(file string) (string, error)
+var environmentLookupTestHook func(username string) (*user.User, error)
